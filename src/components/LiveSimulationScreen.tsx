@@ -250,11 +250,11 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
 
           {/* Dynamic Talking Lip-Sync & Breathing Visualizer Layer */}
           {isSpeaking && (
-            <div className="absolute inset-0 bg-gradient-to-t from-cyan-950/40 via-transparent to-transparent pointer-events-none animate-pulse" />
+            <div className="absolute inset-0 bg-linear-to-t from-cyan-950/40 via-transparent to-transparent pointer-events-none animate-pulse" />
           )}
 
           {/* Studio Atmosphere Glow */}
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-slate-950/60 pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/20 to-slate-950/60 pointer-events-none" />
         </div>
 
         {/* Live Top Header HUD (Mockup Accurate) */}
@@ -313,7 +313,7 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
 
         {/* Promo Flash Sale Overlay Banner (Conditional toggle) */}
         {showPromoBanner && (
-          <div className="absolute top-36 inset-x-3 z-20 bg-gradient-to-r from-amber-500 to-rose-600 text-white p-2.5 rounded-2xl shadow-2xl flex items-center justify-between border border-amber-300/40 animate-bounce">
+          <div className="absolute top-36 inset-x-3 z-20 bg-linear-to-r from-amber-500 to-rose-600 text-white p-2.5 rounded-2xl shadow-2xl flex items-center justify-between border border-amber-300/40 animate-bounce">
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-yellow-200 fill-current" />
               <div>
@@ -408,7 +408,7 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
 
           <button
             onClick={handleBuy}
-            className="shrink-0 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-md shadow-blue-600/30 flex items-center gap-1 transition-all active:scale-95"
+            className="shrink-0 bg-linear-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-md shadow-blue-600/30 flex items-center gap-1 transition-all active:scale-95"
             id="btn-beli-pinned-product"
           >
             <ShoppingBag className="w-3.5 h-3.5" />

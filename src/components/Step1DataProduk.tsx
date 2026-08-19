@@ -356,7 +356,7 @@ export const Step1DataProduk: React.FC<Step1DataProdukProps> = ({
           {/* Next Step Action */}
           <button
             onClick={onNext}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm shadow-lg shadow-blue-600/30 transition-all active:scale-98 flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-xl bg-linear-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm shadow-lg shadow-blue-600/30 transition-all active:scale-98 flex items-center justify-center gap-2"
             id="btn-next-to-step2"
           >
             <span>Lanjut: Pilih AI Host</span>

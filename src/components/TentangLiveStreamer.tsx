@@ -167,7 +167,7 @@ export const TentangLiveStreamer: React.FC<TentangLiveStreamerProps> = ({
         </div>
 
         {/* Interactive Cost Comparison Calculator */}
-        <div className="bg-gradient-to-br from-slate-900 via-blue-950/30 to-slate-900 border border-blue-800/40 rounded-2xl p-6 space-y-4">
+        <div className="bg-linear-to-br from-slate-900 via-blue-950/30 to-slate-900 border border-blue-800/40 rounded-2xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-cyan-400" />

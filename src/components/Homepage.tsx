@@ -44,7 +44,7 @@ export const Homepage: React.FC<HomepageProps> = ({
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.12]">
               Live Selling & Video Promosi,{' '}
-              <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-300 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-blue-400 via-cyan-400 to-teal-300 bg-clip-text text-transparent">
                 100% Otonom
               </span>{' '}
               oleh <span className="text-cyan-400">AI</span>
@@ -95,7 +95,7 @@ export const Homepage: React.FC<HomepageProps> = ({
           <div className="lg:col-span-5 relative">
             
             {/* Ambient Back Glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/30 via-cyan-500/20 to-purple-600/30 rounded-3xl blur-2xl opacity-60" />
+            <div className="absolute -inset-1 bg-linear-to-r from-blue-600/30 via-cyan-500/20 to-purple-600/30 rounded-3xl blur-2xl opacity-60" />
 
             <div className="relative">
               <LiveSimulationScreen
@@ -330,7 +330,7 @@ export const Homepage: React.FC<HomepageProps> = ({
                 key={tier.id}
                 className={`bg-slate-900 border rounded-3xl p-6 space-y-6 relative transition-all ${
                   tier.isPopular 
-                    ? 'border-blue-500 shadow-2xl shadow-blue-600/20 bg-gradient-to-b from-blue-950/30 via-slate-900 to-slate-900' 
+                    ? 'border-blue-500 shadow-2xl shadow-blue-600/20 bg-linear-to-b from-blue-950/30 via-slate-900 to-slate-900' 
                     : 'border-slate-800 hover:border-slate-700'
                 }`}
               >
@@ -364,7 +364,7 @@ export const Homepage: React.FC<HomepageProps> = ({
                   onClick={onStartLiveWizard}
                   className={`w-full py-3 rounded-xl font-bold text-xs transition-all ${
                     tier.isPopular
-                      ? 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-lg shadow-blue-600/30'
+                      ? 'bg-linear-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white shadow-lg shadow-blue-600/30'
                       : 'bg-slate-800 hover:bg-slate-700 text-white'
                   }`}
                   id={`btn-pilih-paket-${tier.id}`}
@@ -389,7 +389,7 @@ export const Homepage: React.FC<HomepageProps> = ({
                 key={tier.id}
                 className={`bg-slate-900 border rounded-3xl p-6 space-y-6 relative transition-all ${
                   tier.isPopular 
-                    ? 'border-emerald-500 shadow-2xl shadow-emerald-600/20 bg-gradient-to-b from-emerald-950/20 via-slate-900 to-slate-900' 
+                    ? 'border-emerald-500 shadow-2xl shadow-emerald-600/20 bg-linear-to-b from-emerald-950/20 via-slate-900 to-slate-900' 
                     : 'border-slate-800 hover:border-slate-700'
                 }`}
               >
@@ -423,7 +423,7 @@ export const Homepage: React.FC<HomepageProps> = ({
                   onClick={onOpenVideoPromo}
                   className={`w-full py-3 rounded-xl font-bold text-xs transition-all ${
                     tier.isPopular
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg shadow-emerald-600/30'
+                      ? 'bg-linear-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg shadow-emerald-600/30'
                       : 'bg-slate-800 hover:bg-slate-700 text-white'
                   }`}
                   id={`btn-pilih-video-${tier.id}`}
@@ -453,7 +453,7 @@ export const Homepage: React.FC<HomepageProps> = ({
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Banner Box */}
-        <div className="bg-gradient-to-r from-blue-900/60 via-indigo-900/60 to-purple-950/60 border border-blue-500/40 rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-2xl relative overflow-hidden">
+        <div className="bg-linear-to-r from-blue-900/60 via-indigo-900/60 to-purple-950/60 border border-blue-500/40 rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-2xl relative overflow-hidden">
           
           <div className="max-w-2xl mx-auto space-y-3">
             <h2 className="text-2xl sm:text-4xl font-extrabold text-white">

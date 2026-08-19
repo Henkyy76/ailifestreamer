@@ -16,8 +16,53 @@ const LANGUAGE_CODE_MAP: Record<string, string> = {
   'Korean': 'ko-KR'
 };
 
+let cachedVoices: SpeechSynthesisVoice[] | null = null;
+
 export function getLanguageCode(languageName: string = 'Bahasa Indonesia'): string {
-  return LANGUAGE_CODE_MAP[languageName] || 'id-ID';
+  const normalizedLanguage = languageName.trim().toLowerCase();
+  const languageEntry = Object.entries(LANGUAGE_CODE_MAP).find(([name]) =>
+    normalizedLanguage.includes(name.toLowerCase()) || name.toLowerCase().includes(normalizedLanguage)
+  );
+
+  return languageEntry?.[1] || 'id-ID';
+}
+
+function getSpeechVoices(): Promise<SpeechSynthesisVoice[]> {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    return Promise.resolve([]);
+  }
+
+  const speechSynthesis = window.speechSynthesis;
+  if (cachedVoices?.length) return Promise.resolve(cachedVoices);
+
+  const voices = speechSynthesis.getVoices();
+  if (voices.length > 0) {
+    cachedVoices = voices;
+    return Promise.resolve(voices);
+  }
+
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      speechSynthesis.removeEventListener('voiceschanged', finish);
+      cachedVoices = speechSynthesis.getVoices();
+      resolve(cachedVoices);
+    };
+
+    speechSynthesis.addEventListener('voiceschanged', finish, { once: true });
+    window.setTimeout(finish, 1000);
+  });
+}
+
+function prepareSpeechText(text: string): string {
+  return text
+    .replace(/[🔥⚡✨🛒🚀🎁😍🎉💖📦🛍️🤖🥰❤️]/gu, '')
+    .replace(/\s+/g, ' ')
+    .replace(/!+/g, '!')
+    .replace(/,{2,}/g, ',')
+    .trim();
 }
 
 export function speakText(
@@ -39,29 +84,45 @@ export function speakText(
     const style = config.speechStyle || 'Persuasif';
     const character = config.voiceCharacter || '';
     const langCode = getLanguageCode(language);
+    const speechText = prepareSpeechText(text);
+    let settled = false;
+    let watchdog: number | undefined;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (watchdog) window.clearTimeout(watchdog);
+      resolve();
+    };
 
     try {
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = langCode;
+      utterance.onend = finish;
+      utterance.onerror = finish;
 
-      // Base Pitch & Rate determination by Gender
-      let pitch = gender === 'Wanita' ? 1.25 : 0.82;
-      let rate = 1.0;
+      // Keep pitch close to the selected voice. Extreme pitch shifts sound synthetic.
+      let pitch = gender === 'Wanita' ? 1.08 : 0.92;
+      let rate = 0.94;
+
+      if (langCode === 'id-ID') {
+        rate = 0.9;
+        pitch = gender === 'Wanita' ? 1.06 : 0.9;
+      }
 
       // Adjust by Speech Style
       if (style === 'Energetic') {
-        rate = 1.18;
-        pitch += gender === 'Wanita' ? 0.15 : 0.08;
+        rate += 0.14;
+        pitch += gender === 'Wanita' ? 0.06 : 0.03;
       } else if (style === 'Professional') {
-        rate = 0.92;
-        pitch -= 0.12;
+        rate -= 0.04;
+        pitch -= 0.03;
       } else if (style === 'Casual') {
-        rate = 1.05;
-        pitch += 0.05;
+        rate += 0.02;
+        pitch += 0.02;
       } else if (style === 'Persuasif') {
-        rate = 0.98;
+        rate += 0.01;
         pitch += 0.02;
       }
 
@@ -75,48 +136,44 @@ export function speakText(
       }
 
       // Clamp values
-      utterance.pitch = Math.max(0.5, Math.min(2.0, pitch));
-      utterance.rate = Math.max(0.6, Math.min(1.8, rate));
+      utterance.pitch = Math.max(0.7, Math.min(1.35, pitch));
+      utterance.rate = Math.max(0.75, Math.min(1.3, rate));
 
-      // Voice selection matching target language and gender
-      const allVoices = window.speechSynthesis.getVoices();
-      const langVoices = allVoices.filter(v => 
-        v.lang.toLowerCase().startsWith(langCode.slice(0, 2).toLowerCase()) ||
-        v.lang.toLowerCase().replace('_', '-').includes(langCode.toLowerCase())
-      );
+      // Voices can load asynchronously, especially on the first browser speech call.
+      getSpeechVoices().then(allVoices => {
+        const targetLocale = langCode.toLowerCase().replace('_', '-');
+        const targetLanguage = targetLocale.slice(0, 2);
+        const langVoices = allVoices
+          .filter(v => v.lang.toLowerCase().replace('_', '-').startsWith(targetLanguage))
+          .sort((a, b) => {
+            const aExact = a.lang.toLowerCase().replace('_', '-') === targetLocale ? 0 : 1;
+            const bExact = b.lang.toLowerCase().replace('_', '-') === targetLocale ? 0 : 1;
+            return aExact - bExact;
+          });
 
-      let matchedVoice: SpeechSynthesisVoice | undefined;
+        const genderKeywords = gender === 'Wanita'
+          ? ['female', 'woman', 'zira', 'jenny', 'samantha', 'yuna', 'xiaoxiao', 'kyoko', 'gadis', 'wanita', 'siri', 'natural']
+          : ['male', 'man', 'david', 'george', 'mark', 'yunxi', 'kangkang', 'otoya', 'minho', 'pria'];
+        const oppositeGenderKeywords = gender === 'Wanita'
+          ? ['male', 'man', 'david', 'george', 'mark', 'yunxi', 'kangkang', 'otoya', 'minho', 'pria']
+          : ['female', 'woman', 'zira', 'jenny', 'samantha', 'yuna', 'xiaoxiao', 'kyoko', 'gadis', 'wanita'];
+        const matchedVoice = langVoices.find(v =>
+          genderKeywords.some(keyword => v.name.toLowerCase().includes(keyword))
+        ) || langVoices.find(v =>
+          !oppositeGenderKeywords.some(keyword => v.name.toLowerCase().includes(keyword))
+        );
 
-      if (langVoices.length > 0) {
-        if (gender === 'Wanita') {
-          matchedVoice = langVoices.find(v => {
-            const name = v.name.toLowerCase();
-            return name.includes('female') || name.includes('woman') || name.includes('zira') ||
-                   name.includes('jenny') || name.includes('samantha') || name.includes('yuna') ||
-                   name.includes('xiaoxiao') || name.includes('kyoko') || name.includes('gadis') ||
-                   name.includes('wanita') || name.includes('siri') || name.includes('natural');
-          }) || langVoices[0];
-        } else {
-          matchedVoice = langVoices.find(v => {
-            const name = v.name.toLowerCase();
-            return name.includes('male') || name.includes('man') || name.includes('david') ||
-                   name.includes('george') || name.includes('mark') || name.includes('yunxi') ||
-                   name.includes('kangkang') || name.includes('otoya') || name.includes('minho') ||
-                   name.includes('pria');
-          }) || (langVoices.length > 1 ? langVoices[1] : langVoices[0]);
-        }
-      }
+        // Keep the requested locale even when the OS has no matching voice installed.
+        utterance.lang = langCode;
+        if (matchedVoice) utterance.voice = matchedVoice;
 
-      if (matchedVoice) {
-        utterance.voice = matchedVoice;
-      }
-
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
-
-      window.speechSynthesis.speak(utterance);
+        window.speechSynthesis.resume();
+        utterance.text = speechText;
+        window.speechSynthesis.speak(utterance);
+        watchdog = window.setTimeout(finish, Math.max(15000, speechText.length * 180));
+      });
     } catch {
-      resolve();
+      finish();
     }
   });
 }

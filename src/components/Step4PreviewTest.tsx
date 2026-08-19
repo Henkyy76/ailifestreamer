@@ -150,7 +150,7 @@ export const Step4PreviewTest: React.FC<Step4PreviewTestProps> = ({
           </div>
 
           {/* Performa Estimasi Card */}
-          <div className="bg-gradient-to-br from-blue-950/40 via-slate-900 to-slate-900 border border-blue-900/40 rounded-2xl p-5 space-y-4 shadow-xl">
+          <div className="bg-linear-to-br from-blue-950/40 via-slate-900 to-slate-900 border border-blue-900/40 rounded-2xl p-5 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
                 <TrendingUp className="w-4 h-4 text-cyan-400" />
@@ -203,7 +203,7 @@ export const Step4PreviewTest: React.FC<Step4PreviewTestProps> = ({
           {/* Quick CTA to Go Live */}
           <button
             onClick={onNext}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm shadow-xl shadow-blue-600/30 transition-all flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-xl bg-linear-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-sm shadow-xl shadow-blue-600/30 transition-all flex items-center justify-center gap-2"
             id="btn-next-to-step5"
           >
             <span>Lanjut: Siap Go Live</span>

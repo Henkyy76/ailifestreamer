@@ -202,7 +202,7 @@ export const Step5GoLive: React.FC<Step5GoLiveProps> = ({
         </div>
 
         {/* Estimasi Biaya Box (COGS Table summary from specs) */}
-        <div className="bg-gradient-to-r from-blue-950/40 via-slate-900 to-cyan-950/40 border border-blue-800/40 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-linear-to-r from-blue-950/40 via-slate-900 to-cyan-950/40 border border-blue-800/40 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center shrink-0">
               <Info className="w-5 h-5 text-cyan-400" />
@@ -231,7 +231,7 @@ export const Step5GoLive: React.FC<Step5GoLiveProps> = ({
         <div className="space-y-2.5 pt-2">
           <button
             onClick={onStartLive}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-400 text-white font-extrabold text-base shadow-2xl shadow-blue-600/40 transition-all transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-3"
+            className="w-full py-4 rounded-2xl bg-linear-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:via-indigo-500 hover:to-cyan-400 text-white font-extrabold text-base shadow-2xl shadow-blue-600/40 transition-all transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-3"
             id="btn-mulai-live-sekarang"
           >
             <Play className="w-5 h-5 fill-current text-white animate-pulse" />

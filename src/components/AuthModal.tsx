@@ -188,7 +188,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onClick={() => {
                   alert('Fitur Top Up Kuota Live AI & Upgrade Plan: Menghubungkan ke Payment Gateway Midtrans/Xendit.');
                 }}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-blue-600/20 transition-all"
+                className="w-full py-3 rounded-xl bg-linear-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-blue-600/20 transition-all"
               >
                 Top Up Kuota / Upgrade Paket
               </button>
@@ -259,7 +259,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
 
             {/* Quick Demo One-Click Login Banner */}
-            <div className="p-3 rounded-2xl bg-gradient-to-r from-cyan-950/80 to-blue-950/80 border border-cyan-500/40 flex items-center justify-between gap-2">
+            <div className="p-3 rounded-2xl bg-linear-to-r from-cyan-950/80 to-blue-950/80 border border-cyan-500/40 flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xs font-bold text-white flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
@@ -419,7 +419,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all"
+                  className="w-full py-3 rounded-xl bg-linear-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all"
                   id="btn-submit-register"
                 >
                   <span>{isLoading ? 'Mendaftarkan...' : 'Daftar & Klaim Free Trial'}</span>

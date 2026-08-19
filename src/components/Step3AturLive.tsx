@@ -348,7 +348,7 @@ export const Step3AturLive: React.FC<Step3AturLiveProps> = ({
 
         <button
           onClick={onNext}
-          className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-1.5"
+          className="px-6 py-2.5 rounded-xl bg-linear-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-1.5"
           id="btn-next-to-step4"
         >
           <span>Lanjut: Preview & Test</span>

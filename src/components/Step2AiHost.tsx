@@ -197,13 +197,13 @@ export const Step2AiHost: React.FC<Step2AiHostProps> = ({
                 </div>
 
                 {/* Avatar Image Aspect Ratio */}
-                <div className="aspect-[3/4] w-full overflow-hidden bg-slate-900 relative">
+                <div className="aspect-3/4 w-full overflow-hidden bg-slate-900 relative">
                   <img
                     src={host.avatarUrl}
                     alt={host.name}
                     className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-slate-950 via-transparent to-transparent" />
                 </div>
 
                 {/* Avatar Card Info */}
@@ -228,7 +228,7 @@ export const Step2AiHost: React.FC<Step2AiHostProps> = ({
           
           {/* Karakter Suara Dropdown */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Mic className="w-3.5 h-3.5 text-cyan-400" />
                 Karakter Suara ({selectedHost.voiceGender})
@@ -270,7 +270,7 @@ export const Step2AiHost: React.FC<Step2AiHostProps> = ({
 
           {/* Bahasa Utama Live Dropdown */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Globe className="w-3.5 h-3.5 text-blue-400" />
                 Bahasa Utama Live & Video
@@ -304,7 +304,7 @@ export const Step2AiHost: React.FC<Step2AiHostProps> = ({
                 onClick={() => setSpeechStyle(style)}
                 className={`py-3 px-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 border ${
                   speechStyle === style
-                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 border-blue-400 text-white shadow-lg shadow-blue-600/30'
+                    ? 'bg-linear-to-r from-blue-600 to-cyan-600 border-blue-400 text-white shadow-lg shadow-blue-600/30'
                     : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
                 }`}
               >
@@ -371,7 +371,7 @@ export const Step2AiHost: React.FC<Step2AiHostProps> = ({
 
         <button
           onClick={onNext}
-          className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-1.5"
+          className="px-6 py-2.5 rounded-xl bg-linear-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition-all flex items-center gap-1.5"
           id="btn-next-to-step3"
         >
           <span>Lanjut: Atur Live</span>

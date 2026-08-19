@@ -289,7 +289,7 @@ export const LiveControlCenter: React.FC<LiveControlCenterProps> = ({
         </div>
 
         {/* Penjualan */}
-        <div className="bg-gradient-to-br from-blue-950/40 via-slate-900 to-slate-900 border border-blue-800/40 rounded-2xl p-4 space-y-1 shadow-lg">
+        <div className="bg-linear-to-br from-blue-950/40 via-slate-900 to-slate-900 border border-blue-800/40 rounded-2xl p-4 space-y-1 shadow-lg">
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span>Penjualan</span>
             <DollarSign className="w-4 h-4 text-emerald-400" />
@@ -465,7 +465,7 @@ export const LiveControlCenter: React.FC<LiveControlCenterProps> = ({
 
       {/* Floating Sales Alert Toast */}
       {salesToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up border border-emerald-400/40">
+        <div className="fixed bottom-6 right-6 z-50 bg-linear-to-r from-emerald-600 to-teal-600 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-slide-up border border-emerald-400/40">
           <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
             <ShoppingCart className="w-5 h-5 text-white" />
           </div>
