@@ -1,0 +1,6 @@
+{
+  "name": "LiveStreamerAI - Autonomous AI Social Commerce Platform",
+  "description": "Platform SaaS AI untuk Live Selling Otonom 24/7 dan Generator Video Promosi Produk Otomatis dengan arsitektur Self-Hosted Open-Source.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
