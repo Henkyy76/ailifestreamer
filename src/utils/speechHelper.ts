@@ -5,6 +5,7 @@ export interface SpeechConfig {
   language?: string;
   speechStyle?: 'Persuasif' | 'Casual' | 'Professional' | 'Energetic' | string;
   voiceCharacter?: string;
+  onStart?: () => void;
 }
 
 const LANGUAGE_CODE_MAP: Record<string, string> = {
@@ -17,6 +18,9 @@ const LANGUAGE_CODE_MAP: Record<string, string> = {
 };
 
 let cachedVoices: SpeechSynthesisVoice[] | null = null;
+let activeAudio: HTMLAudioElement | null = null;
+let audioRequestId = 0;
+const audioCache = new Map<string, Blob>();
 
 export function getLanguageCode(languageName: string = 'Bahasa Indonesia'): string {
   const normalizedLanguage = languageName.trim().toLowerCase();
@@ -69,15 +73,70 @@ export function speakText(
   text: string,
   configOrGender: SpeechConfig | 'Wanita' | 'Pria' = 'Wanita'
 ): Promise<void> {
+  const config: SpeechConfig = typeof configOrGender === 'string'
+    ? { gender: configOrGender }
+    : configOrGender;
+
+  stopSpeaking();
+
+  if (typeof window !== 'undefined') {
+    const requestId = ++audioRequestId;
+    const speechText = prepareSpeechText(text);
+    const cacheKey = JSON.stringify({ text: speechText, ...config, onStart: undefined });
+    const neuralSpeech = new Promise<void>((resolve, reject) => {
+      const responsePromise = audioCache.has(cacheKey)
+        ? Promise.resolve(new Response(audioCache.get(cacheKey)))
+        : fetch('/api/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: speechText, ...config })
+        });
+
+      responsePromise
+        .then(response => {
+          if (!response.ok) throw new Error('Neural TTS request failed');
+          return response.blob();
+        })
+        .then(blob => {
+          if (requestId !== audioRequestId) return resolve();
+          audioCache.set(cacheKey, blob);
+          const audioUrl = URL.createObjectURL(blob);
+          const audio = new Audio(audioUrl);
+          activeAudio = audio;
+          audio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            if (activeAudio === audio) activeAudio = null;
+            resolve();
+          };
+          audio.onerror = () => {
+            URL.revokeObjectURL(audioUrl);
+            if (activeAudio === audio) activeAudio = null;
+            reject(new Error('Neural TTS audio failed'));
+          };
+          audio.play()
+            .then(() => config.onStart?.())
+            .catch(reject);
+        })
+        .catch(reject);
+    });
+
+    return neuralSpeech.catch(() =>
+      requestId === audioRequestId ? speakWithBrowser(text, config) : Promise.resolve()
+    );
+  }
+
+  return Promise.resolve();
+}
+
+function speakWithBrowser(
+  text: string,
+  config: SpeechConfig
+): Promise<void> {
   return new Promise((resolve) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       resolve();
       return;
     }
-
-    const config: SpeechConfig = typeof configOrGender === 'string'
-      ? { gender: configOrGender }
-      : configOrGender;
 
     const gender = config.gender || 'Wanita';
     const language = config.language || 'Bahasa Indonesia';
@@ -170,6 +229,7 @@ export function speakText(
         window.speechSynthesis.resume();
         utterance.text = speechText;
         window.speechSynthesis.speak(utterance);
+        config.onStart?.();
         watchdog = window.setTimeout(finish, Math.max(15000, speechText.length * 180));
       });
     } catch {
@@ -179,6 +239,12 @@ export function speakText(
 }
 
 export function stopSpeaking() {
+  audioRequestId += 1;
+  if (activeAudio) {
+    activeAudio.pause();
+    activeAudio.src = '';
+    activeAudio = null;
+  }
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }

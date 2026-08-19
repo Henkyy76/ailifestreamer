@@ -22,6 +22,7 @@ export const VideoPromoStudio: React.FC<VideoPromoStudioProps> = ({
   const [language, setLanguage] = useState('Bahasa Indonesia');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPreparingAudio, setIsPreparingAudio] = useState(false);
   const [activeSubtitle, setActiveSubtitle] = useState('');
   const [activeSubtitlePart, setActiveSubtitlePart] = useState<'hook' | 'body' | 'cta'>('hook');
   const [regenCount, setRegenCount] = useState(0);
@@ -66,36 +67,42 @@ export const VideoPromoStudio: React.FC<VideoPromoStudioProps> = ({
   };
 
   const togglePlayVoiceover = async () => {
-    if (isPlaying) {
+    if (isPlaying || isPreparingAudio) {
       stopSpeaking();
       setIsPlaying(false);
+      setIsPreparingAudio(false);
       setActiveSubtitle(currentScript.hook);
       setActiveSubtitlePart('hook');
     } else {
-      setIsPlaying(true);
+      setIsPreparingAudio(true);
       setActiveSubtitle(currentScript.hook);
       setActiveSubtitlePart('hook');
-
-      // Timed kinetic subtitles
-      const timer1 = setTimeout(() => {
-        setActiveSubtitle(currentScript.body);
-        setActiveSubtitlePart('body');
-      }, 4000);
-
-      const timer2 = setTimeout(() => {
-        setActiveSubtitle(currentScript.cta);
-        setActiveSubtitlePart('cta');
-      }, 9500);
+      let timer1: number | undefined;
+      let timer2: number | undefined;
 
       const fullText = `${currentScript.hook} ${currentScript.body} ${currentScript.cta}`;
       await speakText(fullText, {
         gender: selectedHost.voiceGender,
         language,
-        speechStyle: 'Persuasif'
+        speechStyle: 'Persuasif',
+        voiceCharacter: selectedHost.voiceTone,
+        onStart: () => {
+          setIsPreparingAudio(false);
+          setIsPlaying(true);
+          timer1 = window.setTimeout(() => {
+            setActiveSubtitle(currentScript.body);
+            setActiveSubtitlePart('body');
+          }, 4000);
+          timer2 = window.setTimeout(() => {
+            setActiveSubtitle(currentScript.cta);
+            setActiveSubtitlePart('cta');
+          }, 9500);
+        }
       });
 
       clearTimeout(timer1);
       clearTimeout(timer2);
+      setIsPreparingAudio(false);
       setIsPlaying(false);
       setActiveSubtitle(currentScript.hook);
       setActiveSubtitlePart('hook');
@@ -388,14 +395,14 @@ export const VideoPromoStudio: React.FC<VideoPromoStudioProps> = ({
             <button
               onClick={togglePlayVoiceover}
               className={`w-full py-3.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md ${
-                isPlaying
+                isPlaying || isPreparingAudio
                   ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/30'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700'
               }`}
               id="btn-play-video-voiceover"
             >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-              <span>{isPlaying ? 'Jeda Video & Voiceover' : 'Putar Video & Voiceover AI'}</span>
+              {isPlaying || isPreparingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+              <span>{isPreparingAudio ? 'Menyiapkan Audio AI...' : isPlaying ? 'Jeda Video & Voiceover' : 'Putar Video & Voiceover AI'}</span>
             </button>
 
             <button

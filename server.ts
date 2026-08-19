@@ -21,6 +21,28 @@ function getGeminiAI(): GoogleGenAI | null {
   return aiClient;
 }
 
+function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bitsPerSample = 16): Buffer {
+  const header = Buffer.alloc(44);
+  const byteRate = sampleRate * channels * bitsPerSample / 8;
+  const blockAlign = channels * bitsPerSample / 8;
+
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(pcm.length, 40);
+
+  return Buffer.concat([header, pcm]);
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -30,6 +52,82 @@ async function startServer() {
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
+  });
+
+  // Neural TTS endpoint shared by Live Studio and Video Promo.
+  app.post('/api/speech', async (req, res) => {
+    try {
+      const {
+        text,
+        gender = 'Wanita',
+        language = 'Bahasa Indonesia',
+        speechStyle = 'Persuasif'
+      } = req.body;
+
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ error: 'Text is required' });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) return res.status(503).json({ error: 'GEMINI_API_KEY is not configured' });
+
+      const voiceName = gender === 'Pria' ? 'Puck' : 'Kore';
+      const languageKey = String(language).toLowerCase();
+      const speakerLanguage = languageKey.includes('english')
+        ? 'English'
+        : languageKey.includes('mandarin')
+        ? 'Mandarin Chinese'
+        : languageKey.includes('japanese')
+        ? 'Japanese'
+        : languageKey.includes('korean')
+        ? 'Korean'
+        : 'Indonesian';
+      const accent = languageKey.includes('indonesia')
+        ? 'Indonesian native accent, natural Indonesian pronunciation'
+        : `native ${language} pronunciation`;
+      const pace = speechStyle === 'Energetic'
+        ? 'lively and energetic, but still clear'
+        : speechStyle === 'Professional'
+        ? 'calm, polished, and measured'
+        : speechStyle === 'Casual'
+        ? 'warm, relaxed, and conversational'
+        : 'persuasive, warm, confident, and conversational';
+      const prompt = `Synthesize ONLY the transcript below as natural voice audio. Do not read these instructions aloud.
+Speaker: ${gender === 'Wanita' ? `a friendly ${speakerLanguage} woman` : `a confident ${speakerLanguage} man`}.
+Delivery: ${pace}. Accent: ${accent}. Use natural breathing, short pauses at commas and sentence endings, smooth intonation, and clear articulation. Avoid robotic timing, foreign accent, exaggerated pitch, and clipped words.
+Transcript:
+${text}`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const details = await response.text();
+        throw new Error(`Gemini TTS ${response.status}: ${details.slice(0, 300)}`);
+      }
+
+      const data = await response.json() as any;
+      const inlineData = data.candidates?.[0]?.content?.parts?.find((part: any) => part.inlineData)?.inlineData;
+      if (!inlineData?.data) throw new Error('Gemini TTS returned no audio');
+
+      const audio = pcmToWav(Buffer.from(inlineData.data, 'base64'));
+      res.type('audio/wav').send(audio);
+    } catch (err: any) {
+      console.error('Neural TTS error:', err?.message || err);
+      res.status(503).json({ error: 'Neural TTS unavailable' });
+    }
   });
 
   // Real-time AI Host Question & Answer endpoint powered by Gemini 3.7 Flash

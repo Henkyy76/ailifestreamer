@@ -460,6 +460,42 @@ export function generateVideoPromoScript(
     };
   }
 
+  if (language.includes('Mandarin')) {
+    return {
+      id: `script-zh-${Date.now()}`,
+      frameworkName: selectedFw.name,
+      frameworkCategory: selectedFw.category,
+      hook: `如果你还在为暗沉肌肤烦恼，一定要看到最后！`,
+      body: `这就是 ${product.name}！富含 ${firstBenefit}，同时拥有 ${secondBenefit}，让肌肤看起来更加明亮水润。`,
+      cta: `直播专享价只要 ${priceFormatted}，现在点击购物车马上带回家！`,
+      estimatedDurationSec: durationSec
+    };
+  }
+
+  if (language.includes('Japanese')) {
+    return {
+      id: `script-ja-${Date.now()}`,
+      frameworkName: selectedFw.name,
+      frameworkCategory: selectedFw.category,
+      hook: `くすみ肌に悩んでいる方は、ぜひ最後までご覧ください！`,
+      body: `こちらは ${product.name} です。${firstBenefit} と ${secondBenefit} を実現し、毎日の肌を明るくすこやかに整えます。`,
+      cta: `ライブ限定価格は ${priceFormatted} です。今すぐカートをタップしてください！`,
+      estimatedDurationSec: durationSec
+    };
+  }
+
+  if (language.includes('Korean')) {
+    return {
+      id: `script-ko-${Date.now()}`,
+      frameworkName: selectedFw.name,
+      frameworkCategory: selectedFw.category,
+      hook: `칙칙한 피부 때문에 고민이라면, 지금부터 꼭 집중해 주세요!`,
+      body: `바로 ${product.name}입니다. ${firstBenefit}과 ${secondBenefit}으로 매일 촉촉하고 생기 있는 피부를 만들어 줍니다.`,
+      cta: `라이브 특별가는 ${priceFormatted}입니다. 지금 바로 장바구니를 눌러 주세요!`,
+      estimatedDurationSec: durationSec
+    };
+  }
+
   // Indonesian Variations
   switch (fwKey) {
     case 0: // Problem-Agitate-Solve

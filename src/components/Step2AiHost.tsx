@@ -28,6 +28,7 @@ export const Step2AiHost: React.FC<Step2AiHostProps> = ({
 }) => {
   const [filterType, setFilterType] = useState<'Semua' | 'Avatar 2D' | 'Avatar 3D'>('Avatar 3D');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isPreparingAudio, setIsPreparingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [voiceCharacter, setVoiceCharacter] = useState<string>('Natural Standard');
 
@@ -70,34 +71,36 @@ export const Step2AiHost: React.FC<Step2AiHostProps> = ({
   };
 
   const togglePlayAudio = async () => {
-    if (isPlayingAudio) {
+    if (isPlayingAudio || isPreparingAudio) {
       stopSpeaking();
       setIsPlayingAudio(false);
+      setIsPreparingAudio(false);
       setAudioProgress(0);
     } else {
-      setIsPlayingAudio(true);
-      setAudioProgress(10);
-      const interval = setInterval(() => {
-        setAudioProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            return 0;
-          }
-          return prev + 14;
-        });
-      }, 700);
+      setIsPreparingAudio(true);
+      setAudioProgress(0);
+      let interval: number | undefined;
 
       const sampleText = getLocalizedSample();
       await speakText(sampleText, {
         gender: selectedHost.voiceGender,
         language,
         speechStyle,
-        voiceCharacter
+        voiceCharacter,
+        onStart: () => {
+          setIsPreparingAudio(false);
+          setIsPlayingAudio(true);
+          setAudioProgress(10);
+          interval = window.setInterval(() => {
+            setAudioProgress(prev => prev >= 100 ? 0 : prev + 14);
+          }, 700);
+        }
       });
 
       setIsPlayingAudio(false);
+      setIsPreparingAudio(false);
       setAudioProgress(0);
-      clearInterval(interval);
+      if (interval) window.clearInterval(interval);
     }
   };
 
@@ -323,7 +326,7 @@ export const Step2AiHost: React.FC<Step2AiHostProps> = ({
               className="w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 transition-all"
               id="btn-waveform-play"
             >
-              {isPlayingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                {isPlayingAudio || isPreparingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
             </button>
             <div className="text-left">
               <span className="text-xs font-bold text-white block">
@@ -354,7 +357,7 @@ export const Step2AiHost: React.FC<Step2AiHostProps> = ({
           </div>
 
           <span className="text-xs text-slate-400 font-mono shrink-0">
-            {isPlayingAudio ? `00:0${Math.min(8, Math.floor(audioProgress / 12))}` : '00:00'} / 00:08
+                {isPreparingAudio ? 'Menyiapkan...' : isPlayingAudio ? `00:0${Math.min(8, Math.floor(audioProgress / 12))}` : '00:00'} / 00:08
           </span>
         </div>
 
