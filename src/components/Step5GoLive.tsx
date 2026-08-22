@@ -33,6 +33,41 @@ export const Step5GoLive: React.FC<Step5GoLiveProps> = ({
   const [copiedKey, setCopiedKey] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
+  const [liveRtmpUrl, setLiveRtmpUrl] = useState(rtmpUrl);
+  const [liveStreamKey, setLiveStreamKey] = useState(streamKey);
+  const [bridgeState, setBridgeState] = useState<'idle' | 'testing' | 'running' | 'error'>('idle');
+  const [bridgeMessage, setBridgeMessage] = useState('Belum ada koneksi RTMP yang diuji.');
+
+  const testRtmpConnection = async () => {
+    if (!liveRtmpUrl.trim() || !liveStreamKey.trim()) {
+      setBridgeState('error');
+      setBridgeMessage('Server URL dan stream key wajib diisi.');
+      return;
+    }
+
+    setBridgeState('testing');
+    setBridgeMessage('Menghubungkan encoder ke TikTok...');
+    try {
+      const response = await fetch('/api/stream/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rtmpUrl: liveRtmpUrl.trim(), streamKey: liveStreamKey.trim() })
+      });
+      const data = await response.json();
+      if (!response.ok || data.state === 'error') throw new Error(data.message || 'Koneksi RTMP gagal.');
+      setBridgeState('running');
+      setBridgeMessage(data.message || 'Encoder berhasil berjalan.');
+    } catch (error: any) {
+      setBridgeState('error');
+      setBridgeMessage(error?.message || 'Stream bridge tidak tersedia. Jalankan aplikasi secara lokal.');
+    }
+  };
+
+  const stopRtmpConnection = async () => {
+    await fetch('/api/stream/stop', { method: 'POST' }).catch(() => undefined);
+    setBridgeState('idle');
+    setBridgeMessage('Koneksi RTMP dihentikan.');
+  };
 
   const copyToClipboard = (text: string, type: 'rtmp' | 'key') => {
     navigator.clipboard.writeText(text);
@@ -151,11 +186,12 @@ export const Step5GoLive: React.FC<Step5GoLiveProps> = ({
                 <input
                   type="text"
                   readOnly
-                  value={rtmpUrl}
+                  value={liveRtmpUrl}
+                  onChange={(event) => setLiveRtmpUrl(event.target.value)}
                   className="w-full bg-transparent text-xs text-slate-200 font-mono focus:outline-none"
                 />
                 <button
-                  onClick={() => copyToClipboard(rtmpUrl, 'rtmp')}
+                  onClick={() => copyToClipboard(liveRtmpUrl, 'rtmp')}
                   className="p-1.5 text-slate-400 hover:text-white transition-colors"
                   title="Salin URL"
                 >
@@ -181,11 +217,12 @@ export const Step5GoLive: React.FC<Step5GoLiveProps> = ({
                 <input
                   type={showKey ? 'text' : 'password'}
                   readOnly
-                  value={streamKey}
+                  value={liveStreamKey}
+                  onChange={(event) => setLiveStreamKey(event.target.value)}
                   className="w-full bg-transparent text-xs text-slate-200 font-mono focus:outline-none"
                 />
                 <button
-                  onClick={() => copyToClipboard(streamKey, 'key')}
+                  onClick={() => copyToClipboard(liveStreamKey, 'key')}
                   className="p-1.5 text-slate-400 hover:text-white transition-colors"
                   title="Salin Stream Key"
                 >
@@ -197,6 +234,35 @@ export const Step5GoLive: React.FC<Step5GoLiveProps> = ({
             <p className="text-[10px] text-slate-500">
               💡 Salin data di atas ke OBS Studio, TikTok Live Studio, atau Shopee Live Console.
             </p>
+
+            <div className="border-t border-slate-800 pt-3 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] font-semibold text-slate-300">Uji koneksi TikTok RTMP</span>
+                <span className={`text-[10px] font-bold ${
+                  bridgeState === 'running' ? 'text-emerald-400' : bridgeState === 'error' ? 'text-rose-400' : bridgeState === 'testing' ? 'text-amber-400' : 'text-slate-500'
+                }`}>
+                  {bridgeState === 'running' ? 'TERHUBUNG' : bridgeState === 'error' ? 'GAGAL' : bridgeState === 'testing' ? 'MENGUJI' : 'BELUM DIUJI'}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">{bridgeMessage}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={testRtmpConnection}
+                  disabled={bridgeState === 'testing' || bridgeState === 'running'}
+                  className="flex-1 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-[11px] font-bold"
+                >
+                  Uji Koneksi
+                </button>
+                <button
+                  onClick={stopRtmpConnection}
+                  disabled={bridgeState !== 'running' && bridgeState !== 'testing'}
+                  className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 text-[11px] font-bold"
+                >
+                  Hentikan
+                </button>
+              </div>
+              <p className="text-[10px] text-amber-400/80">Mode MVP: pengujian encoder memakai pola video test. AI Host production disambungkan setelah RTMP akun tervalidasi.</p>
+            </div>
           </div>
 
         </div>

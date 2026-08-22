@@ -20,6 +20,7 @@ const LANGUAGE_CODE_MAP: Record<string, string> = {
 let cachedVoices: SpeechSynthesisVoice[] | null = null;
 let activeAudio: HTMLAudioElement | null = null;
 let audioRequestId = 0;
+let neuralTtsBlockedUntil = 0;
 const audioCache = new Map<string, Blob>();
 
 export function getLanguageCode(languageName: string = 'Bahasa Indonesia'): string {
@@ -84,12 +85,30 @@ export function speakText(
     const speechText = prepareSpeechText(text);
     const cacheKey = JSON.stringify({ text: speechText, ...config, onStart: undefined });
     const neuralSpeech = new Promise<void>((resolve, reject) => {
-      const responsePromise = audioCache.has(cacheKey)
+      const useBrowserFallback = Date.now() < neuralTtsBlockedUntil;
+      const responsePromise = useBrowserFallback
+        ? Promise.reject(new Error('Neural TTS quota cooldown'))
+        : audioCache.has(cacheKey)
         ? Promise.resolve(new Response(audioCache.get(cacheKey)))
         : fetch('/api/speech', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: speechText, ...config })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: speechText, ...config })
+        }).then(response => {
+          if (response.ok) return response;
+          if (response.status === 429) {
+            neuralTtsBlockedUntil = Date.now() + 60_000;
+            return response;
+          }
+          return new Promise<Response>((resolve, reject) => {
+            window.setTimeout(() => {
+              fetch('/api/speech', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: speechText, ...config })
+              }).then(resolve).catch(reject);
+            }, 250);
+          });
         });
 
       responsePromise
@@ -211,16 +230,20 @@ function speakWithBrowser(
           });
 
         const genderKeywords = gender === 'Wanita'
-          ? ['female', 'woman', 'zira', 'jenny', 'samantha', 'yuna', 'xiaoxiao', 'kyoko', 'gadis', 'wanita', 'siri', 'natural']
-          : ['male', 'man', 'david', 'george', 'mark', 'yunxi', 'kangkang', 'otoya', 'minho', 'pria'];
-        const oppositeGenderKeywords = gender === 'Wanita'
-          ? ['male', 'man', 'david', 'george', 'mark', 'yunxi', 'kangkang', 'otoya', 'minho', 'pria']
-          : ['female', 'woman', 'zira', 'jenny', 'samantha', 'yuna', 'xiaoxiao', 'kyoko', 'gadis', 'wanita'];
-        const matchedVoice = langVoices.find(v =>
+          ? ['female', 'woman', 'zira', 'aria', 'jenny', 'samantha', 'susan', 'ava', 'sara', 'allison', 'hazel', 'libby', 'sonia', 'yuna', 'xiaoxiao', 'kyoko', 'gadis', 'wanita', 'siri', 'natural']
+          : ['male', 'man', 'david', 'george', 'mark', 'guy', 'ryan', 'alex', 'yunxi', 'kangkang', 'otoya', 'minho', 'pria'];
+        const genderVoice = (voices: SpeechSynthesisVoice[]) => voices.find(v =>
           genderKeywords.some(keyword => v.name.toLowerCase().includes(keyword))
-        ) || langVoices.find(v =>
-          !oppositeGenderKeywords.some(keyword => v.name.toLowerCase().includes(keyword))
         );
+
+        // Never fall back to an arbitrary locale voice: Chrome may return a male
+        // default voice for a female host when the requested locale has no match.
+        const matchedVoice = genderVoice(langVoices) || langVoices[0];
+
+        // Preserve the native locale even when the OS cannot identify voice gender.
+        if (gender === 'Wanita' && matchedVoice && !genderVoice(langVoices)) {
+          console.warn('No female voice metadata for', langCode, '- using the native locale voice.');
+        }
 
         // Keep the requested locale even when the OS has no matching voice installed.
         utterance.lang = langCode;
@@ -230,7 +253,7 @@ function speakWithBrowser(
         utterance.text = speechText;
         window.speechSynthesis.speak(utterance);
         config.onStart?.();
-        watchdog = window.setTimeout(finish, Math.max(15000, speechText.length * 180));
+        watchdog = window.setTimeout(finish, Math.max(8000, speechText.length * 120));
       });
     } catch {
       finish();

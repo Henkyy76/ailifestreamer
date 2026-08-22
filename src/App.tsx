@@ -5,8 +5,11 @@ import { StudioWizard } from './components/StudioWizard';
 import { LiveControlCenter } from './components/LiveControlCenter';
 import { VideoPromoStudio } from './components/VideoPromoStudio';
 import { TentangLiveStreamer } from './components/TentangLiveStreamer';
+import { ObsOutput } from './components/ObsOutput';
 import { AuthModal } from './components/AuthModal';
 import { INITIAL_PRODUCTS, AI_HOSTS } from './data/mockData';
+import { loadSupabaseCatalog } from './lib/supabaseData';
+import { getConfiguredLiveSessionId, getLiveSession, subscribeToLiveSession, updateLiveSession } from './lib/liveSession';
 import { Product, AIHost, SpeechStyle, StreamingPlatform, AutomationSettings, UserAccount, AuthModalTab } from './types';
 import { Radio, ShieldCheck, Heart, Sparkles, ExternalLink, Bot, Layers, LogIn, User } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -14,7 +17,22 @@ import confetti from 'canvas-confetti';
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('homepage');
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [hosts] = useState<AIHost[]>(AI_HOSTS);
+  const [hosts, setHosts] = useState<AIHost[]>(AI_HOSTS);
+
+  useEffect(() => {
+    let isMounted = true;
+    void loadSupabaseCatalog().then(catalog => {
+      if (!isMounted || !catalog) return;
+      setProducts(catalog.products);
+      setHosts(catalog.hosts);
+      setSelectedProductIds(catalog.products.slice(0, 4).map(product => product.id));
+      setActiveProductId(catalog.products[0].id);
+      setSelectedHostId(catalog.hosts[0].id);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
@@ -33,6 +51,39 @@ export default function App() {
   const [language, setLanguage] = useState<string>('Bahasa Indonesia');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>(INITIAL_PRODUCTS.slice(0, 4).map(p => p.id));
   const [activeProductId, setActiveProductId] = useState<string>(INITIAL_PRODUCTS[0].id);
+
+  useEffect(() => {
+    const sessionId = getConfiguredLiveSessionId();
+    if (!sessionId) return;
+
+    const applySession = (session: { current_product_id?: string | null; status?: string; avatar_id?: string | null; speech_style?: string; language?: string }) => {
+      if (session.current_product_id) setActiveProductId(session.current_product_id);
+      if (session.avatar_id) setSelectedHostId(session.avatar_id);
+      if (session.speech_style) setSpeechStyle(session.speech_style as SpeechStyle);
+      if (session.language) setLanguage(session.language);
+      if (session.status === 'running') setIsStreamingActive(true);
+      if (session.status === 'stopped' || session.status === 'ended') setIsStreamingActive(false);
+    };
+
+    void getLiveSession(sessionId).then(session => {
+      if (session) applySession(session);
+    });
+
+    const sessionPoller = window.setInterval(() => {
+      void getLiveSession(sessionId).then(session => {
+        if (session) applySession(session);
+      });
+    }, 1500);
+
+    const channel = subscribeToLiveSession(sessionId, session => {
+      applySession(session);
+    });
+
+    return () => {
+      void channel?.unsubscribe();
+      window.clearInterval(sessionPoller);
+    };
+  }, []);
   const [durationHours, setDurationHours] = useState<number>(8);
   const [platforms, setPlatforms] = useState<StreamingPlatform[]>(['TikTok LIVE', 'Shopee Live']);
   
@@ -52,6 +103,23 @@ export default function App() {
 
   const activeProduct = products.find(p => p.id === activeProductId) || products[0];
   const selectedHost = hosts.find(h => h.id === selectedHostId) || hosts[1];
+
+  if (window.location.pathname === '/obs-output') {
+    let outputConfig: { productId?: string; hostId?: string; speechStyle?: string; language?: string } = {};
+    try {
+      outputConfig = JSON.parse(localStorage.getItem('livestreamer_live_config') || '{}');
+    } catch (_) {}
+    const outputProduct = products.find(product => product.id === outputConfig.productId) || activeProduct;
+    const outputHost = hosts.find(host => host.id === outputConfig.hostId) || selectedHost;
+    return (
+      <ObsOutput
+        product={outputProduct}
+        host={outputHost}
+        speechStyle={outputConfig.speechStyle || speechStyle}
+        language={outputConfig.language || language}
+      />
+    );
+  }
 
   const handleLoginSuccess = (user: UserAccount) => {
     setCurrentUser(user);
@@ -76,6 +144,32 @@ export default function App() {
     setIsStreamingActive(true);
     setActiveTab('live-control');
     try {
+      localStorage.setItem('livestreamer_live_config', JSON.stringify({
+        productId: activeProductId,
+        hostId: selectedHostId,
+        speechStyle,
+        language,
+        selectedProductIds,
+        startedAt: new Date().toISOString(),
+      }));
+    } catch (_) {}
+    const sessionId = getConfiguredLiveSessionId();
+    if (sessionId) {
+      const liveProductId = products.some(product => product.id === activeProductId) ? activeProductId : null;
+      void updateLiveSession(sessionId, {
+        status: 'running',
+        current_product_id: liveProductId,
+        avatar_id: hosts.some(host => host.id === selectedHostId) ? selectedHostId : undefined,
+        speech_style: speechStyle,
+        language,
+      }).then(updated => {
+        if (!updated) {
+          console.error('Live session gagal disimpan ke Supabase. Cek UUID dan policy UPDATE RLS.');
+          alert('Live lokal aktif, tetapi status Supabase gagal diperbarui. Buka DevTools Console untuk melihat detail error Supabase.');
+        }
+      });
+    }
+    try {
       confetti({
         particleCount: 80,
         spread: 70,
@@ -88,6 +182,11 @@ export default function App() {
     if (confirm('Apakah Anda yakin ingin mengakhiri sesi Live Streaming?')) {
       setIsStreamingActive(false);
       setActiveTab('studio');
+      try {
+        localStorage.removeItem('livestreamer_live_config');
+      } catch (_) {}
+      const sessionId = getConfiguredLiveSessionId();
+      if (sessionId) void updateLiveSession(sessionId, { status: 'ended' });
       alert('Sesi Live telah selesai. Laporan performa dan rekaman stream sedang di-generate.');
     }
   };
@@ -151,7 +250,15 @@ export default function App() {
           <LiveControlCenter
             activeProduct={activeProduct}
             products={products}
-            onSelectProduct={(p) => setActiveProductId(p.id)}
+            onSelectProduct={(p) => {
+              setActiveProductId(p.id);
+              try {
+                const currentConfig = JSON.parse(localStorage.getItem('livestreamer_live_config') || '{}');
+                localStorage.setItem('livestreamer_live_config', JSON.stringify({ ...currentConfig, productId: p.id }));
+              } catch (_) {}
+              const sessionId = getConfiguredLiveSessionId();
+              if (sessionId) void updateLiveSession(sessionId, { current_product_id: p.id });
+            }}
             host={selectedHost}
             speechStyle={speechStyle}
             language={language}

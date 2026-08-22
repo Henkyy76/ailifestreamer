@@ -3,6 +3,7 @@ import { Heart, Volume2, VolumeX, Sparkles, ShoppingBag, Send, RefreshCw, Pin, M
 import { Product, AIHost, LiveComment } from '../types';
 import { generateHostResponse, generateHostResponseAsync, getLiveMonologue } from '../utils/aiResponseEngine';
 import { speakText, stopSpeaking } from '../utils/speechHelper';
+import { getChatMessages, getConfiguredLiveSessionId, insertChatMessage, subscribeToChatMessages } from '../lib/liveSession';
 import confetti from 'canvas-confetti';
 
 interface LiveSimulationScreenProps {
@@ -15,6 +16,7 @@ interface LiveSimulationScreenProps {
   onProductChangeRequest?: () => void;
   onBuyClick?: (product: Product) => void;
   isInteractive?: boolean;
+  isOutput?: boolean;
   showToolbar?: boolean;
   className?: string;
 }
@@ -29,6 +31,7 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
   onProductChangeRequest,
   onBuyClick,
   isInteractive = true,
+  isOutput = false,
   showToolbar = true,
   className = ''
 }) => {
@@ -42,6 +45,9 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
   const [viewerCount, setViewerCount] = useState(1238);
   const [monologueIdx, setMonologueIdx] = useState(0);
   const [currentMonologueText, setCurrentMonologueText] = useState('');
+  const speakingRef = useRef(false);
+  const queuedSpeechRef = useRef<string | null>(null);
+  const speechRunRef = useRef(0);
 
   const [comments, setComments] = useState<LiveComment[]>([
     {
@@ -62,6 +68,88 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
   ]);
 
   const commentsContainerRef = useRef<HTMLDivElement>(null);
+  const seenChatIdsRef = useRef(new Set<string>());
+  const liveSessionId = getConfiguredLiveSessionId();
+
+  useEffect(() => {
+    if (!liveSessionId) return;
+    const applyChatEvent = (event: { id: string; senderName: string; message: string; isHost: boolean; createdAt?: string }) => {
+      if (seenChatIdsRef.current.has(event.id)) return;
+      seenChatIdsRef.current.add(event.id);
+      const message: LiveComment = {
+        id: event.id,
+        sender: event.senderName,
+        avatar: event.isHost ? host.avatarUrl : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+        message: event.message,
+        timestamp: event.createdAt ? new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Baru saja',
+        isAiReply: event.isHost,
+      };
+      setComments(previous => [...previous, message].slice(-16));
+      if (event.isHost) {
+        setIsAiThinking(false);
+        if (isOutput) void playHostSpeech(event.message);
+      } else if (isOutput) {
+        setIsAiThinking(true);
+      }
+    };
+
+    void getChatMessages(liveSessionId).then(events => {
+      events.forEach(event => {
+        seenChatIdsRef.current.add(event.id);
+        const message: LiveComment = {
+          id: event.id,
+          sender: event.senderName,
+          avatar: event.isHost ? host.avatarUrl : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+          message: event.message,
+          timestamp: event.createdAt ? new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Baru saja',
+          isAiReply: event.isHost,
+        };
+        setComments(previous => previous.some(item => item.id === message.id) ? previous : [...previous, message].slice(-16));
+      });
+    });
+    const channel = subscribeToChatMessages(liveSessionId, event => {
+      applyChatEvent(event);
+    });
+    const poller = window.setInterval(() => {
+      void getChatMessages(liveSessionId).then(events => events.forEach(applyChatEvent));
+    }, 1500);
+    return () => {
+      void channel?.unsubscribe();
+      window.clearInterval(poller);
+    };
+  }, [liveSessionId, host.avatarUrl, isOutput]);
+
+  const playHostSpeech = async (text: string) => {
+    if (!text.trim()) return;
+
+    if (speakingRef.current) {
+      queuedSpeechRef.current = text;
+      return;
+    }
+
+    const speechRun = speechRunRef.current;
+    speakingRef.current = true;
+    setCurrentMonologueText(text);
+    setIsSpeaking(true);
+
+    try {
+      await speakText(text, {
+        gender: host.voiceGender,
+        language,
+        speechStyle,
+        voiceCharacter
+      });
+    } finally {
+      if (speechRun !== speechRunRef.current) return;
+      speakingRef.current = false;
+      setIsSpeaking(false);
+      const queuedSpeech = queuedSpeechRef.current;
+      queuedSpeechRef.current = null;
+      if (queuedSpeech) {
+        window.setTimeout(() => void playHostSpeech(queuedSpeech), 0);
+      }
+    }
+  };
 
   // Auto scroll comments
   useEffect(() => {
@@ -76,7 +164,6 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
       setMonologueIdx((prev) => {
         const nextIdx = prev + 1;
         const newMonologue = getLiveMonologue(activeProduct, host, speechStyle, language, nextIdx);
-        setCurrentMonologueText(newMonologue);
         
         // Add autonomous live speech event to chat
         if (Math.random() > 0.4) {
@@ -93,17 +180,8 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
           ]);
         }
 
-        if (isAudioOn) {
-          setIsSpeaking(true);
-          speakText(newMonologue, {
-            gender: host.voiceGender,
-            language,
-            speechStyle,
-            voiceCharacter
-          }).then(() => {
-            setIsSpeaking(false);
-          });
-        }
+        // Background monologues never interrupt an active answer.
+        if (isAudioOn && !speakingRef.current) void playHostSpeech(newMonologue);
 
         return nextIdx;
       });
@@ -145,7 +223,7 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
   };
 
   const handleSendCommentText = async (userMsg: string) => {
-    if (!userMsg.trim()) return;
+    if (!userMsg.trim() || !isInteractive) return;
 
     const newComment: LiveComment = {
       id: `user-${Date.now()}`,
@@ -156,6 +234,7 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
     };
 
     setComments(prev => [...prev, newComment]);
+    if (liveSessionId) void insertChatMessage(liveSessionId, { senderName: newComment.sender, text: newComment.message });
 
     if (autoReplyEnabled) {
       setIsAiThinking(true);
@@ -171,19 +250,13 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isAiReply: true
         };
-        setComments(prev => [...prev, replyComment]);
-        setCurrentMonologueText(aiAnswer.text);
-
-        if (isAudioOn) {
-          setIsSpeaking(true);
-          await speakText(aiAnswer.text, {
-            gender: host.voiceGender,
-            language,
-            speechStyle,
-            voiceCharacter
-          });
-          setIsSpeaking(false);
+        if (liveSessionId) {
+          void insertChatMessage(liveSessionId, { senderName: replyComment.sender, text: replyComment.message, isHost: true });
+        } else {
+          setComments(prev => [...prev, replyComment]);
         }
+
+        if (isAudioOn) await playHostSpeech(aiAnswer.text);
       } catch (e) {
         setIsAiThinking(false);
       }
@@ -201,19 +274,15 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
   const toggleSound = () => {
     if (isAudioOn) {
       stopSpeaking();
+      speechRunRef.current += 1;
+      speakingRef.current = false;
+      queuedSpeechRef.current = null;
       setIsAudioOn(false);
       setIsSpeaking(false);
     } else {
       setIsAudioOn(true);
-      setIsSpeaking(true);
       const greeting = getLiveMonologue(activeProduct, host, speechStyle, language, 0);
-      setCurrentMonologueText(greeting);
-      speakText(greeting, {
-        gender: host.voiceGender,
-        language,
-        speechStyle,
-        voiceCharacter
-      }).then(() => setIsSpeaking(false));
+      void playHostSpeech(greeting);
     }
   };
 
@@ -345,7 +414,7 @@ export const LiveSimulationScreen: React.FC<LiveSimulationScreenProps> = ({
           ref={commentsContainerRef}
           className="absolute bottom-24 inset-x-3 max-h-48 overflow-y-auto space-y-1.5 z-20 scrollbar-none pr-1 pointer-events-auto"
         >
-          {comments.map((c) => (
+          {comments.filter(c => !c.isAiReply).map((c) => (
             <div
               key={c.id}
               className={`text-xs rounded-2xl px-3 py-1.5 backdrop-blur-md max-w-[92%] transition-all ${

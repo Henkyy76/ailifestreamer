@@ -3,6 +3,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import { getStreamStatus, startStream, stopStream } from './streamBridge';
 
 dotenv.config();
 
@@ -43,7 +44,7 @@ function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bitsPerSample =
   return Buffer.concat([header, pcm]);
 }
 
-async function startServer() {
+export async function createApp(includeFrontendMiddleware = true) {
   const app = express();
   const PORT = 3000;
 
@@ -52,6 +53,24 @@ async function startServer() {
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
+  });
+
+  app.get('/api/stream/status', (req, res) => {
+    res.json(getStreamStatus());
+  });
+
+  app.post('/api/stream/start', (req, res) => {
+    try {
+      const { rtmpUrl, streamKey, inputUrl } = req.body;
+      const streamStatus = startStream({ rtmpUrl, streamKey, inputUrl });
+      res.json(streamStatus);
+    } catch (error: any) {
+      res.status(503).json({ state: 'error', message: error?.message || 'Stream bridge gagal dijalankan.' });
+    }
+  });
+
+  app.post('/api/stream/stop', (req, res) => {
+    res.json(stopStream());
   });
 
   // Neural TTS endpoint shared by Live Studio and Video Promo.
@@ -71,7 +90,7 @@ async function startServer() {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) return res.status(503).json({ error: 'GEMINI_API_KEY is not configured' });
 
-      const voiceName = gender === 'Pria' ? 'Puck' : 'Kore';
+      const voiceName = gender === 'Pria' ? 'Puck' : 'Aoede';
       const languageKey = String(language).toLowerCase();
       const speakerLanguage = languageKey.includes('english')
         ? 'English'
@@ -93,8 +112,9 @@ async function startServer() {
         ? 'warm, relaxed, and conversational'
         : 'persuasive, warm, confident, and conversational';
       const prompt = `Synthesize ONLY the transcript below as natural voice audio. Do not read these instructions aloud.
-Speaker: ${gender === 'Wanita' ? `a friendly ${speakerLanguage} woman` : `a confident ${speakerLanguage} man`}.
-Delivery: ${pace}. Accent: ${accent}. Use natural breathing, short pauses at commas and sentence endings, smooth intonation, and clear articulation. Avoid robotic timing, foreign accent, exaggerated pitch, and clipped words.
+    Speaker gender requirement: ${gender === 'Wanita' ? 'FEMALE VOICE ONLY: a clearly feminine adult woman, never a male or deep masculine voice' : 'MALE VOICE ONLY: a clearly masculine adult man'}.
+    Speaker: ${gender === 'Wanita' ? `a friendly ${speakerLanguage} woman` : `a confident ${speakerLanguage} man`}.
+    Voice preset: ${voiceName}. Delivery: ${pace}. Accent: ${accent}. Use natural Indonesian conversational pacing, relaxed breathing, short pauses at commas and sentence endings, smooth intonation, and clear articulation. Pronounce Indonesian words naturally as a native Indonesian speaker would; do not use an English accent, do not over-enunciate syllables, do not rush, and do not sound robotic or mechanical. Keep the selected gender consistent throughout the entire recording.
 Transcript:
 ${text}`;
 
@@ -252,13 +272,13 @@ Format JSON persis:
   });
 
   // Vite middleware for dev / static for prod
-  if (process.env.NODE_ENV !== 'production') {
+  if (includeFrontendMiddleware && process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (includeFrontendMiddleware) {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -266,9 +286,13 @@ Format JSON persis:
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`LiveStreamerAI server running on http://localhost:${PORT}`);
-  });
+  return app;
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  createApp().then(app => {
+    app.listen(3000, '0.0.0.0', () => {
+      console.log('LiveStreamerAI server running on http://localhost:3000');
+    });
+  });
+}
